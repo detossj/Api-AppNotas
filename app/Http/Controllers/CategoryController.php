@@ -2,49 +2,82 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\CategoryResource;
 use App\Models\Category;
 use Illuminate\Http\Request;
 
 class CategoryController extends Controller
 {
     /**
-     * Store a newly created category in storage.
+     * Listar todas las categorías del usuario autenticado traducidas a camelCase.
+     */
+    public function index(Request $request)
+    {
+        $categories = $request->user()
+            ->categories()
+            ->withCount('notes')
+            ->latest()
+            ->get();
+
+        return CategoryResource::collection($categories);
+    }
+
+    /**
+     * Crear una nueva categoría para el usuario autenticado.
      */
     public function store(Request $request)
     {
         $validatedData = $request->validate([
-            'name' => 'required|string|max:255',
-            'icon' => 'nullable|string|max:255',
+            'id'    => 'nullable|string|max:36',
+            'name'  => 'required|string|max:255',
+            'icon'  => 'nullable|string|max:255',
             'color' => 'nullable|string|max:255',
-            'user_id' => 'required|exists:users,id' 
         ]);
 
-        $category = Category::create($validatedData);
+        $category = $request->user()->categories()->create($validatedData);
 
-        return response()->json([
-            'message' => 'Categoría creada exitosamente',
-            'data' => $category
-        ], 201);
+        return (new CategoryResource($category))
+            ->response()
+            ->setStatusCode(201);
     }
 
     /**
-     * Remove the specified category from storage.
+     * Mostrar una categoría específica con su contador de notas.
      */
-    public function destroy($id)
+    public function show(Request $request, string $id)
     {
-        $category = Category::find($id);
+        $category = $request->user()
+            ->categories()
+            ->withCount('notes')
+            ->findOrFail($id);
 
-        if (!$category) {
-            return response()->json([
-                'message' => 'Categoría no encontrada'
-            ], 404);
-        }
+        return new CategoryResource($category);
+    }
 
-        // Validar si el usuario actual es dueño de esta categoría
-        if ($category->user_id !== auth()->id()) {
-            return response()->json(['message' => 'No autorizado'], 403);
-        }
+    /**
+     * Actualizar una categoría existente.
+     */
+    public function update(Request $request, string $id)
+    {
+        $category = $request->user()->categories()->findOrFail($id);
 
+        $validatedData = $request->validate([
+            'name'  => 'sometimes|required|string|max:255',
+            'icon'  => 'nullable|string|max:255',
+            'color' => 'nullable|string|max:255',
+        ]);
+
+        $category->update($validatedData);
+
+        return new CategoryResource($category);
+    }
+
+    /**
+     * Eliminar una categoría y sus notas asociadas.
+     */
+    public function destroy(Request $request, string $id)
+    {
+        $category = $request->user()->categories()->findOrFail($id);
         $category->delete();
 
         return response()->json([
