@@ -9,14 +9,23 @@ class Note extends Model
 {
     use HasUuids;
 
-    // Solo permito que se guarden estos datos de forma automática
-    protected $fillable = ['id', 'title', 'content', 'category_id', 'is_pinned', 'image', 'date', 'tags'];
+    protected $keyType = 'string';  // Para que el id sea string y no integer
+    public $incrementing = false;   // Para que el id no sea autoincremental
+
+    protected $fillable = ['id', 'user_id', 'category_id', 'title', 'content', 'is_pinned', 'image', 'date', 'tags'];
 
     protected $casts = [
         'is_pinned' => 'boolean',
+        'tags' => 'array',
     ];
 
-    // Una nota le pertenece estrictamente a una categoría
+    // Una nota le pertenece al usuario
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    // Una nota le pertenece a una categoría
     public function category()
     {
         return $this->belongsTo(Category::class);

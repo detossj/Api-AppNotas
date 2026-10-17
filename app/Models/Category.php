@@ -9,8 +9,10 @@ class Category extends Model
 {
     use HasUuids;
 
-    // Solo permito que se guarden estos datos de forma automática:
-    protected $fillable = ['id', 'name', 'user_id', 'icon', 'color'];
+    protected $keyType = 'string'; // Para que el id sea string y no integer
+    public $incrementing = false;  // Para que el id no sea autoincremental
+
+    protected $fillable = ['id', 'user_id', 'name', 'icon', 'color'];
 
     // Una categoría le pertenece a un solo usuario
     public function user()
