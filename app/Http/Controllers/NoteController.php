@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Resources\NoteResource;
 use App\Models\Note;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class NoteController extends Controller
@@ -58,8 +60,14 @@ class NoteController extends Controller
             'is_pinned'   => 'nullable|boolean',
             'date'        => 'nullable|string',
             'image'       => 'nullable|string',
-            'tags'        => 'nullable|array',
         ]);
+
+        if (!empty($validatedData['image'])) {
+            $validatedData['image'] = $this->processImageAttribute($validatedData['image'], $userId);
+        }
+        if (!empty($validatedData['content'])) {
+            $validatedData['content'] = $this->processContentImages($validatedData['content'], $userId);
+        }
 
         $note = $request->user()->notes()->create($validatedData);
 
@@ -109,8 +117,14 @@ class NoteController extends Controller
             'is_pinned'   => 'nullable|boolean',
             'date'        => 'nullable|string',
             'image'       => 'nullable|string',
-            'tags'        => 'nullable|array',
         ]);
+
+        if (array_key_exists('image', $validatedData) && !empty($validatedData['image'])) {
+            $validatedData['image'] = $this->processImageAttribute($validatedData['image'], $userId);
+        }
+        if (array_key_exists('content', $validatedData) && !empty($validatedData['content'])) {
+            $validatedData['content'] = $this->processContentImages($validatedData['content'], $userId);
+        }
 
         $note->update($validatedData);
 
@@ -128,5 +142,54 @@ class NoteController extends Controller
         return response()->json([
             'message' => 'Nota eliminada exitosamente'
         ], 200);
+    }
+
+    /**
+     * Procesa y guarda imágenes base64 si son enviadas en el campo image de la nota.
+     */
+    private function processImageAttribute(?string $image, int|string $userId): ?string
+    {
+        if (!$image) {
+            return null;
+        }
+
+        if (preg_match('/^data:image\/(\w+);base64,/', $image, $type)) {
+            $data = substr($image, strpos($image, ',') + 1);
+            $ext = strtolower($type[1]);
+            $extension = $ext === 'jpeg' ? 'jpg' : $ext;
+            $decoded = base64_decode($data);
+            if ($decoded !== false) {
+                $filename = Str::uuid() . '.' . $extension;
+                Storage::disk('local')->put("notes/{$userId}/" . $filename, $decoded);
+                return 'api/images/' . $filename;
+            }
+        }
+
+        return $image;
+    }
+
+    /**
+     * Procesa y extrae imágenes base64 incrustadas dentro del contenido de la nota.
+     */
+    private function processContentImages(?string $content, int|string $userId): ?string
+    {
+        if (!$content) {
+            return $content;
+        }
+
+        return preg_replace_callback('/<!--image:(data:image\/(\w+);base64,[^>]+)-->/', function ($matches) use ($userId) {
+            $raw = $matches[1];
+            $type = $matches[2];
+            $data = substr($raw, strpos($raw, ',') + 1);
+            $ext = strtolower($type);
+            $extension = $ext === 'jpeg' ? 'jpg' : $ext;
+            $decoded = base64_decode($data);
+            if ($decoded !== false) {
+                $filename = Str::uuid() . '.' . $extension;
+                Storage::disk('local')->put("notes/{$userId}/" . $filename, $decoded);
+                return '<!--image:api/images/' . $filename . '-->';
+            }
+            return $matches[0];
+        }, $content);
     }
 }
