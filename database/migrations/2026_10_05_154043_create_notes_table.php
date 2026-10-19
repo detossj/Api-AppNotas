@@ -21,7 +21,6 @@ return new class extends Migration
             $table->boolean('is_pinned')->default(false);
             $table->string('date')->nullable();
             $table->string('image')->nullable();
-            $table->json('tags')->nullable();
             $table->timestamps();
         });
     }

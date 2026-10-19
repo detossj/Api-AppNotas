@@ -12,11 +12,10 @@ class Note extends Model
     protected $keyType = 'string';  // Para que el id sea string y no integer
     public $incrementing = false;   // Para que el id no sea autoincremental
 
-    protected $fillable = ['id', 'user_id', 'category_id', 'title', 'content', 'is_pinned', 'image', 'date', 'tags'];
+    protected $fillable = ['id', 'user_id', 'category_id', 'title', 'content', 'is_pinned', 'image', 'date'];
 
     protected $casts = [
         'is_pinned' => 'boolean',
-        'tags' => 'array',
     ];
 
     // Una nota le pertenece al usuario
