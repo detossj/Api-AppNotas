@@ -69,6 +69,17 @@ class NoteController extends Controller
             $validatedData['content'] = $this->processContentImages($validatedData['content'], $userId);
         }
 
+        // Si ya existe la nota con este ID (por ejemplo sincronización reintentada), la actualizamos
+        if (!empty($validatedData['id'])) {
+            $existing = $request->user()->notes()->find($validatedData['id']);
+            if ($existing) {
+                $existing->update($validatedData);
+                return (new NoteResource($existing))
+                    ->response()
+                    ->setStatusCode(200);
+            }
+        }
+
         $note = $request->user()->notes()->create($validatedData);
 
         return (new NoteResource($note))
